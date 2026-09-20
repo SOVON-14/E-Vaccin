@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: evaccin-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evaccin
+      POSTGRES_PASSWORD: evaccin_password
+      POSTGRES_DB: evaccin_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - evaccin-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evaccin -d evaccin_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: evaccin-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - evaccin-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: evaccin-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://evaccin:evaccin_password@postgres:5432/evaccin_db
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: your_jwt_secret_change_in_production
+      JWT_REFRESH_SECRET: your_refresh_secret_change_in_production
+      PORT: 3001
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - evaccin-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Frontend Web
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: evaccin-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_URL: http://localhost:3001/api
+      VITE_APP_ENV: development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - evaccin-network
+    depends_on:
+      - backend
+
+  # Adminer (Database Management Tool)
+  adminer:
+    image: adminer:latest
+    container_name: evaccin-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - evaccin-network
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  evaccin-network:
+    driver: bridge

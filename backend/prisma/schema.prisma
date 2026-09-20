@@ -1,0 +1,436 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  CENTER_MANAGER
+  HEALTH_WORKER
+  PARENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum VaccinationStatus {
+  COMPLETED
+  SCHEDULED
+  OVERDUE
+  CANCELLED
+}
+
+enum NotificationType {
+  SMS
+  EMAIL
+  PUSH
+  WHATSAPP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  DELIVERED
+}
+
+enum AuditAction {
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  CHILD_CREATED
+  CHILD_UPDATED
+  CHILD_DELETED
+  VACCINATION_CREATED
+  VACCINATION_UPDATED
+  VACCINATION_DELETED
+  APPOINTMENT_CREATED
+  APPOINTMENT_UPDATED
+  APPOINTMENT_CANCELLED
+  STOCK_MOVEMENT
+  HEALTH_CENTER_CREATED
+  HEALTH_CENTER_UPDATED
+  LOGIN
+  LOGOUT
+  PASSWORD_CHANGED
+  PERMISSION_GRANTED
+  PERMISSION_REVOKED
+}
+
+// ============================================
+// CORE TABLES
+// ============================================
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  phone             String?   @unique
+  password          String
+  role              UserRole  @default(PARENT)
+  isActive          Boolean   @default(true)
+  isEmailVerified   Boolean   @default(false)
+  isPhoneVerified   Boolean   @default(false)
+  lastLoginAt       DateTime?
+  failedLoginAttempts Int     @default(0)
+  lockedUntil       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  parent            Parent?
+  healthWorker      HealthWorker?
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+}
+
+model RefreshToken {
+  id           String   @id @default(uuid())
+  token        String   @unique
+  userId       String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  revokedAt    DateTime?
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// ============================================
+// HEALTH CENTER & WORKERS
+// ============================================
+
+model HealthCenter {
+  id                String    @id @default(uuid())
+  name              String
+  code              String    @unique
+  address           String
+  region            String
+  district          String
+  phone             String
+  email             String?
+  latitude          Float?
+  longitude         Float?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  healthWorkers     HealthWorker[]
+  children          Child[]
+  vaccinations      Vaccination[]
+  appointments      Appointment[]
+  stockMovements    StockMovement[]
+  vaccineBatches    VaccineBatch[]
+
+  @@index([code])
+  @@index([region])
+  @@index([isActive])
+}
+
+model HealthWorker {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  licenseNumber     String    @unique
+  firstName         String
+  lastName          String
+  healthCenterId    String
+  specialization   String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  healthCenter      HealthCenter @relation(fields: [healthCenterId], references: [id])
+  vaccinations      Vaccination[]
+  appointments      Appointment[]
+
+  @@index([userId])
+  @@index([licenseNumber])
+  @@index([healthCenterId])
+}
+
+// ============================================
+// PARENTS & CHILDREN
+// ============================================
+
+model Parent {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime?
+  address           String?
+  city              String?
+  region            String?
+  preferredLanguage String    @default("fr")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  children          Child[]
+
+  @@index([userId])
+}
+
+model Child {
+  id                String    @id @default(uuid())
+  uniqueId          String    @unique
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime
+  placeOfBirth      String?
+  gender            Gender
+  bloodType         String?
+  photoUrl          String?
+  qrCode            String?
+  parentId          String
+  healthCenterId    String
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  parent            Parent    @relation(fields: [parentId], references: [id])
+  healthCenter      HealthCenter @relation(fields: [healthCenterId], references: [id])
+  vaccinations      Vaccination[]
+  appointments      Appointment[]
+
+  @@index([uniqueId])
+  @@index([parentId])
+  @@index([healthCenterId])
+  @@index([dateOfBirth])
+}
+
+// ============================================
+// VACCINES & SCHEDULES
+// ============================================
+
+model Vaccine {
+  id                String    @id @default(uuid())
+  name              String
+  code              String    @unique
+  description       String?
+  manufacturer      String?
+  type              String?
+  requiredDoses     Int       @default(1)
+  minAgeDays        Int?
+  maxAgeDays        Int?
+  intervalDays      Int?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  vaccineSchedules  VaccineSchedule[]
+  vaccinations      Vaccination[]
+  vaccineBatches    VaccineBatch[]
+  appointments      Appointment[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model VaccineSchedule {
+  id                String    @id @default(uuid())
+  vaccineId         String
+  doseNumber        Int
+  minAgeDays        Int
+  maxAgeDays        Int
+  intervalFromPreviousDose Int?
+  description       String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  vaccine           Vaccine   @relation(fields: [vaccineId], references: [id])
+
+  @@unique([vaccineId, doseNumber])
+  @@index([vaccineId])
+}
+
+// ============================================
+// VACCINATIONS & APPOINTMENTS
+// ============================================
+
+model Vaccination {
+  id                String              @id @default(uuid())
+  childId           String
+  vaccineId         String
+  doseNumber        Int
+  batchNumber       String
+  healthCenterId    String
+  healthWorkerId    String
+  vaccinationDate   DateTime
+  nextDueDate       DateTime?
+  status            VaccinationStatus    @default(COMPLETED)
+  notes             String?
+  adverseReaction   String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  child             Child               @relation(fields: [childId], references: [id])
+  vaccine           Vaccine             @relation(fields: [vaccineId], references: [id])
+  healthCenter      HealthCenter        @relation(fields: [healthCenterId], references: [id])
+  healthWorker      HealthWorker        @relation(fields: [healthWorkerId], references: [id])
+
+  @@index([childId])
+  @@index([vaccineId])
+  @@index([healthCenterId])
+  @@index([vaccinationDate])
+  @@index([nextDueDate])
+  @@index([status])
+}
+
+model Appointment {
+  id                String    @id @default(uuid())
+  childId           String
+  vaccineId         String
+  doseNumber        Int
+  healthCenterId    String
+  healthWorkerId    String?
+  scheduledDate     DateTime
+  status            VaccinationStatus @default(SCHEDULED)
+  notes             String?
+  reminderSent       Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  child             Child         @relation(fields: [childId], references: [id])
+  vaccine           Vaccine       @relation(fields: [vaccineId], references: [id])
+  healthCenter      HealthCenter  @relation(fields: [healthCenterId], references: [id])
+  healthWorker      HealthWorker? @relation(fields: [healthWorkerId], references: [id])
+
+  @@index([childId])
+  @@index([healthCenterId])
+  @@index([scheduledDate])
+  @@index([status])
+}
+
+// ============================================
+// STOCK MANAGEMENT
+// ============================================
+
+model VaccineBatch {
+  id                String    @id @default(uuid())
+  batchNumber       String    @unique
+  vaccineId         String
+  healthCenterId    String
+  manufacturingDate DateTime
+  expirationDate    DateTime
+  initialQuantity   Int
+  currentQuantity   Int
+  receivedDate      DateTime
+  supplier          String?
+  lotNumber         String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  vaccine           Vaccine   @relation(fields: [vaccineId], references: [id])
+  healthCenter      HealthCenter @relation(fields: [healthCenterId], references: [id])
+  stockMovements   StockMovement[]
+
+  @@index([batchNumber])
+  @@index([vaccineId])
+  @@index([healthCenterId])
+  @@index([expirationDate])
+}
+
+model StockMovement {
+  id                String    @id @default(uuid())
+  vaccineBatchId    String
+  healthCenterId    String
+  movementType      String    // IN, OUT, ADJUSTMENT, EXPIRED
+  quantity          Int
+  reason            String?
+  performedBy       String?
+  createdAt         DateTime  @default(now())
+
+  // Relations
+  vaccineBatch      VaccineBatch @relation(fields: [vaccineBatchId], references: [id])
+  healthCenter      HealthCenter @relation(fields: [healthCenterId], references: [id])
+
+  @@index([vaccineBatchId])
+  @@index([healthCenterId])
+  @@index([createdAt])
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id                String            @id @default(uuid())
+  userId            String
+  type              NotificationType
+  status            NotificationStatus @default(PENDING)
+  title             String
+  message           String
+  recipientEmail    String?
+  recipientPhone    String?
+  scheduledAt       DateTime?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  error             String?
+  metadata          Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relations
+  user              User              @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+// ============================================
+// AUDIT LOGS
+// ============================================
+
+model AuditLog {
+  id                String    @id @default(uuid())
+  userId            String?
+  action            AuditAction
+  entityType        String
+  entityId          String
+  oldValue          Json?
+  newValue          Json?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime  @default(now())
+
+  // Relations
+  user              User?     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
