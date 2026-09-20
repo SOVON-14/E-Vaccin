@@ -1,12 +1,17 @@
-# e-VACCIN 🏥💉
+# e-VACCIN
+
+[![CI/CD Pipeline](https://github.com/SOVON-14/E-Vaccin/actions/workflows/ci.yml/badge.svg)](https://github.com/SOVON-14/E-Vaccin/actions/workflows/ci.yml)
+![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-96%20passing-brightgreen)
 
 Plateforme numérique de suivi de vaccination des enfants
 
-## 📋 Description
+## Description
 
 e-VACCIN est une plateforme web/mobile permettant de digitaliser le carnet de vaccination des enfants et de faciliter le suivi des vaccinations par les parents, les agents de santé et les responsables des centres de vaccination.
 
-## 🎯 Objectifs
+## Objectifs
 
 - Remplacer le carnet papier par un système numérique sécurisé
 - Enregistrer les enfants et leurs vaccinations
@@ -17,14 +22,14 @@ e-VACCIN est une plateforme web/mobile permettant de digitaliser le carnet de va
 - Produire des statistiques et des rapports
 - Fonctionner avec une connexion Internet limitée
 
-## 👥 Utilisateurs
+## Utilisateurs
 
 - **Parent/Tuteur** : Gère le carnet de vaccination de ses enfants
 - **Agent de santé** : Enregistre les vaccinations et gère les patients
 - **Responsable de centre** : Gère les agents, les stocks et les statistiques
 - **Administrateur** : Gestion globale du système
 
-## 🛠️ Technologies
+## Technologies
 
 ### Backend
 - **Framework** : NestJS (Node.js + TypeScript)
@@ -49,7 +54,7 @@ e-VACCIN est une plateforme web/mobile permettant de digitaliser le carnet de va
 - **Cache** : Redis 7
 - **CI/CD** : GitHub Actions (à configurer)
 
-## 📁 Structure du Projet
+## Structure du Projet
 
 ```
 e-vaccin/
@@ -88,7 +93,7 @@ e-vaccin/
 └── .github/               # Configuration GitHub
 ```
 
-## 🚀 Démarrage Rapide
+## Démarrage Rapide
 
 ### Prérequis
 
@@ -98,22 +103,29 @@ e-vaccin/
 
 ### Installation
 
+> Installation **avec Docker** (recommandée) ci-dessous — alternative **sans Docker** plus bas.
+
 1. **Cloner le repository**
 ```bash
-git clone <repository-url>
-cd e-vaccin
+git clone https://github.com/SOVON-14/E-Vaccin.git
+cd E-vaccin
 ```
 
 2. **Configurer les variables d'environnement**
-```bash
-# Backend
-cp backend/.env.example backend/.env
 
-# Frontend
+   Les `.env.example` sont prêts à l'emploi en développement (aucune modification requise) :
+```bash
+# Linux/Mac
+cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
+```powershell
+# Windows (PowerShell)
+Copy-Item backend\.env.example backend\.env
+Copy-Item frontend\.env.example frontend\.env
+```
 
-3. **Démarrer les services Docker**
+3. **Démarrer les services Docker** (PostgreSQL 15, Redis 7, Adminer)
 ```bash
 # Windows
 scripts\dev.bat
@@ -123,7 +135,9 @@ chmod +x scripts/dev.sh
 ./scripts/dev.sh
 ```
 
-4. **Configurer la base de données**
+   Équivalent manuel : `docker compose up -d`
+
+4. **Initialiser la base de données** (dépendances, client Prisma, migration initiale, données de démonstration)
 ```bash
 # Windows
 scripts\setup-db.bat
@@ -133,6 +147,39 @@ chmod +x scripts/setup-db.sh
 ./scripts/setup-db.sh
 ```
 
+   Le script exécute : `npm install` → `prisma generate` → `prisma migrate dev --name init` (crée la migration depuis `schema.prisma`) → `prisma db seed`.
+
+### Installation sans Docker
+
+Nécessite un **PostgreSQL local (15+)** et Node.js 18+. Renseignez `DATABASE_URL` dans `backend/.env`, puis :
+
+```bash
+# Backend — API sur http://localhost:3001
+cd backend
+npm install
+npx prisma generate
+npx prisma migrate dev --name init
+npx prisma db seed
+npm run start:dev
+```
+
+```bash
+# Frontend — sur http://localhost:3000 (dans un second terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+### Comptes de démonstration
+
+Après le seed, trois comptes sont disponibles sur la page de connexion :
+
+| Rôle | Email | Mot de passe |
+|---|---|---|
+| Parent | `parent@evaccin.com` | `Parent@2026!` |
+| Agent de santé | `agent@evaccin.com` | `Worker@2026!` |
+| Administrateur | `admin@evaccin.com` | `Admin@2026!` |
+
 ### Accès aux Services
 
 - **Frontend** : http://localhost:3000
@@ -140,7 +187,7 @@ chmod +x scripts/setup-db.sh
 - **Documentation API** : http://localhost:3001/api/docs
 - **Adminer (DB)** : http://localhost:8080
 
-## 🗄️ Schéma de Base de Données
+## Schéma de Base de Données
 
 Le schéma Prisma complet est disponible dans `backend/prisma/schema.prisma`.
 
@@ -160,7 +207,7 @@ Le schéma Prisma complet est disponible dans `backend/prisma/schema.prisma`.
 - `Notification` - Notifications
 - `AuditLog` - Journal d'audit
 
-## 🔐 Sécurité
+## Sécurité
 
 - Authentification JWT avec refresh tokens
 - Hachage des mots de passe avec Argon2id
@@ -170,49 +217,49 @@ Le schéma Prisma complet est disponible dans `backend/prisma/schema.prisma`.
 - HTTPS obligatoire en production
 - Chiffrement des données sensibles
 
-## 📱 Fonctionnalités
+## Fonctionnalités
 
 ### MVP (Version 1)
 
-- ✅ Inscription/connexion
-- ✅ Gestion des parents
-- ✅ Gestion des enfants
-- ✅ Carnet numérique
-- ✅ Gestion des vaccins
-- ✅ Enregistrement des doses
-- ✅ Calendrier vaccinal configurable
-- ✅ Prochaines vaccinations
-- ✅ Historique
-- ✅ Dashboard parent
-- ✅ Dashboard agent
-- ✅ Recherche enfant
-- ✅ QR Code
-- ✅ Notifications/rappels
-- ✅ Gestion des rôles
-- ✅ Journalisation
+- [x] Inscription/connexion
+- [x] Gestion des parents
+- [x] Gestion des enfants
+- [x] Carnet numérique
+- [x] Gestion des vaccins
+- [x] Enregistrement des doses
+- [x] Calendrier vaccinal configurable
+- [x] Prochaines vaccinations
+- [x] Historique
+- [x] Dashboard parent
+- [x] Dashboard agent
+- [x] Recherche enfant
+- [x] QR Code
+- [x] Notifications/rappels
+- [x] Gestion des rôles
+- [x] Journalisation
 
 ### Version 2
 
-- 🔄 Gestion des stocks
-- 🔄 Gestion des lots
-- 🔄 Notifications SMS
-- 🔄 Application mobile
-- 🔄 Mode hors connexion
-- 🔄 Synchronisation
-- 🔄 Statistiques avancées
-- 🔄 Export Excel/CSV
-- 🔄 Rapports PDF
+- [ ] Gestion des stocks
+- [ ] Gestion des lots
+- [ ] Notifications SMS
+- [ ] Application mobile
+- [ ] Mode hors connexion
+- [ ] Synchronisation
+- [ ] Statistiques avancées
+- [ ] Export Excel/CSV
+- [ ] Rapports PDF
 
 ### Version 3
 
-- 🔄 Gestion régionale/nationale
-- 🔄 Cartographie des centres
-- 🔄 Analyse des couvertures vaccinales
-- 🔄 Système d'alertes avancé
-- 🔄 API d'interopérabilité
-- 🔄 Architecture hautement disponible
+- [ ] Gestion régionale/nationale
+- [ ] Cartographie des centres
+- [ ] Analyse des couvertures vaccinales
+- [ ] Système d'alertes avancé
+- [ ] API d'interopérabilité
+- [ ] Architecture hautement disponible
 
-## 🧪 Tests
+## Tests
 
 ```bash
 # Backend tests
@@ -226,7 +273,7 @@ cd frontend
 npm run test
 ```
 
-## 📝 Scripts Disponibles
+## Scripts Disponibles
 
 ### Développement
 ```bash
@@ -261,7 +308,7 @@ docker-compose logs -f
 docker-compose restart backend
 ```
 
-## 🔄 Workflow Git
+## Workflow Git
 
 ### Branches
 
@@ -285,14 +332,14 @@ git commit -m "feat: description de la fonctionnalité"
 git push origin feature/nom-fonctionnalite
 ```
 
-## 📚 Documentation
+## Documentation
 
 - [Documentation API](http://localhost:3001/api/docs)
 - [Documentation Prisma](https://www.prisma.io/docs)
 - [Documentation NestJS](https://docs.nestjs.com)
 - [Documentation React](https://react.dev)
 
-## 🤝 Contribution
+## Contribution
 
 1. Fork le projet
 2. Créer une branche (`git checkout -b feature/AmazingFeature`)
@@ -300,18 +347,18 @@ git push origin feature/nom-fonctionnalite
 4. Pousser vers la branche (`git push origin feature/AmazingFeature`)
 5. Ouvrir une Pull Request
 
-## 📄 Licence
+## Licence
 
 Ce projet est sous licence propriétaire. Tous droits réservés.
 
-## 👨‍⚕️ Avertissement Médical
+## Avertissement Médical
 
 Ce système est un outil de gestion de données médicales et ne remplace pas l'avis d'un professionnel de santé. Les règles vaccinales doivent être validées par l'autorité sanitaire compétente avant toute mise en production.
 
-## 📞 Support
+## Support
 
 Pour toute question ou support, veuillez contacter l'équipe e-VACCIN.
 
 ---
 
-**Développé avec ❤️ pour améliorer la santé des enfants**
+**Développé pour améliorer la santé des enfants**
